@@ -9,7 +9,7 @@ use serde_derive::Serialize;
 
 use super::proposal_state::{ProposalState, Step as ProposalStep};
 use super::{Error, Message, MessageContent, Result};
-use rand::Rand;
+use rand::{Rand, Rng};
 use {util, DistAlgorithm, NetworkInfo, NodeIdT, SessionIdT};
 
 /// A `Subset` step, possibly containing several outputs.
@@ -48,11 +48,16 @@ impl<N: NodeIdT + Rand, S: SessionIdT> DistAlgorithm for Subset<N, S> {
     type Message = Message<N>;
     type Error = Error;
 
-    fn handle_input(&mut self, input: Self::Input) -> Result<Step<N>> {
+    fn handle_input<R: Rng>(&mut self, _rng: &mut R, input: Self::Input) -> Result<Step<N>> {
         self.propose(input)
     }
 
-    fn handle_message(&mut self, sender_id: &N, message: Message<N>) -> Result<Step<N>> {
+    fn handle_message<R: Rng>(
+        &mut self,
+        _rng: &mut R,
+        sender_id: &N,
+        message: Message<N>,
+    ) -> Result<Step<N>> {
         self.handle_message(sender_id, message)
     }
 
