@@ -70,7 +70,8 @@ impl Adversary<Broadcast<NodeId>> for ProposeAdversary {
                     .messages
                     .into_iter()
                     .map(move |msg| MessageWithSender::new(id, msg))
-            }).collect()
+            })
+            .collect()
     }
 }
 

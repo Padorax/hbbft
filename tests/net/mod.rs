@@ -758,7 +758,8 @@ where
                 });
                 steps.insert(id.clone(), step);
                 (id, Node::new(algorithm, is_faulty))
-            }).collect();
+            })
+            .collect();
 
         let mut message_count: usize = 0;
         // For every recorded step, apply it.
@@ -887,11 +888,11 @@ where
         // Unfortunately, we have to re-borrow the target node further down to make the borrow
         // checker happy. First, we check if the receiving node is faulty, so we can dispatch
         // through the adversary if it is.
-        let is_faulty = try_some!(
-            self.nodes
-                .get(&msg.to)
-                .ok_or_else(|| CrankError::NodeDisappeared(msg.to.clone()))
-        ).is_faulty();
+        let is_faulty = try_some!(self
+            .nodes
+            .get(&msg.to)
+            .ok_or_else(|| CrankError::NodeDisappeared(msg.to.clone())))
+        .is_faulty();
 
         let step: Step<_, _, _> = if is_faulty {
             // The swap-dance is painful here, as we are creating an `opt_step` just to avoid
@@ -972,7 +973,8 @@ where
                     node.id().clone(),
                     node.algorithm.handle_input(input.clone())?,
                 ))
-            }).collect::<Result<_, _>>()?;
+            })
+            .collect::<Result<_, _>>()?;
 
         // Process all messages from all steps in the queue.
         steps.iter().for_each(|(id, step)| {

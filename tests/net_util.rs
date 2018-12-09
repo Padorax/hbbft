@@ -53,7 +53,7 @@ where
     }
 }
 
-proptest!{
+proptest! {
     /// Ensures all generated network dimensions are actually sane.
     #[test]
     fn generated_network_dimensions_are_sane(_nt in NetworkDimension::range(1, 400)) {
@@ -71,7 +71,7 @@ fn any_op() -> impl Strategy<Value = Op> {
     any::<bool>().prop_map(|v| if v { Op::Simplify } else { Op::Complicate })
 }
 
-proptest!{
+proptest! {
     /// Verifies generated network dimensions can be grown and shrunk multiple times.
     #[test]
     fn network_dimensions_shrink_and_grow(

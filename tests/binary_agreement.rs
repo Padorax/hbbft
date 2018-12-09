@@ -66,7 +66,7 @@ prop_compose! {
 }
 
 /// Proptest wrapper for `binary_agreement` that runs the test function on generated configurations.
-proptest!{
+proptest! {
     #![proptest_config(ProptestConfig {
         cases: 1, .. ProptestConfig::default()
     })]
@@ -130,7 +130,8 @@ fn binary_agreement(cfg: TestConfig) {
         .using(move |node_info: NewNodeInfo<_>| {
             BinaryAgreement::new(Arc::new(node_info.netinfo), 0)
                 .expect("Failed to create a BinaryAgreement instance.")
-        }).build()
+        })
+        .build()
         .expect("Could not construct test network.");
     net.test_binary_agreement(cfg.input, rng.gen::<TestRng>());
     println!(

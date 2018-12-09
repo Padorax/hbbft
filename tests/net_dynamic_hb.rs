@@ -75,7 +75,7 @@ prop_compose! {
 }
 
 /// Proptest wrapper for `do_drop_and_readd`.
-proptest!{
+proptest! {
     #![proptest_config(ProptestConfig {
         cases: 1, .. ProptestConfig::default()
     })]
@@ -111,8 +111,10 @@ fn do_drop_and_readd(cfg: TestConfig) {
             SenderQueue::builder(
                 dhb,
                 node.netinfo.all_ids().filter(|&&them| them != id).cloned(),
-            ).build(node.id)
-        }).build()
+            )
+            .build(node.id)
+        })
+        .build()
         .expect("could not construct test network");
 
     // We will use the first correct node as the node we will remove from and re-add to the network.
@@ -184,7 +186,8 @@ fn do_drop_and_readd(cfg: TestConfig) {
                         .send_input(
                             node_id,
                             Input::Change(Change::NodeChange(pub_keys_add.clone())),
-                        ).expect("failed to send `Add` input");
+                        )
+                        .expect("failed to send `Add` input");
                 }
 
                 ChangeState::Complete(Change::NodeChange(ref pub_keys))

@@ -36,10 +36,7 @@ pub enum Error {
     #[fail(display = "Redundant input provided")]
     MultipleMessagesToSign,
     /// Error combining and verifying signature shares.
-    #[fail(
-        display = "Error combining and verifying signature shares: {}",
-        _0
-    )]
+    #[fail(display = "Error combining and verifying signature shares: {}", _0)]
     CombineAndVerifySigCrypto(crypto::error::Error),
     /// Unknown sender
     #[fail(display = "Unknown sender")]
@@ -86,16 +83,16 @@ impl<N: NodeIdT> DistAlgorithm for ThresholdSign<N> {
     type Error = Error;
 
     /// Sends our threshold signature share if not yet sent.
-    fn handle_input<R: Rng>(&mut self, _rng: &mut R, _input: ()) -> Result<Step<N>> {
+    fn handle_input<R: Rng>(&mut self, _input: (), _rng: &mut R) -> Result<Step<N>> {
         self.sign()
     }
 
     /// Receives input from a remote node.
     fn handle_message<R: Rng>(
         &mut self,
-        _rng: &mut R,
         sender_id: &Self::NodeId,
         message: Message,
+        _rng: &mut R,
     ) -> Result<Step<N>> {
         self.handle_message(sender_id, message)
     }

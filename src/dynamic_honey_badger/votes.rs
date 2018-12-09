@@ -65,10 +65,11 @@ where
         sender_id: &N,
         signed_vote: SignedVote<N>,
     ) -> Result<FaultLog<N>> {
-        if signed_vote.vote.era != self.era || self
-            .pending
-            .get(&signed_vote.voter)
-            .map_or(false, |sv| sv.vote.num >= signed_vote.vote.num)
+        if signed_vote.vote.era != self.era
+            || self
+                .pending
+                .get(&signed_vote.voter)
+                .map_or(false, |sv| sv.vote.num >= signed_vote.vote.num)
         {
             return Ok(FaultLog::new()); // The vote is obsolete or already exists.
         }

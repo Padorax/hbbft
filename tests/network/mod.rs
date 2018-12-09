@@ -117,7 +117,8 @@ impl MessageScheduler {
             rand::thread_rng().choose(&ids).cloned()
         } else {
             ids.next()
-        }.expect("no more messages in queue")
+        }
+        .expect("no more messages in queue")
     }
 }
 
