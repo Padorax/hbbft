@@ -25,7 +25,6 @@ use rand::{Rand, Rng};
 use threshold_crypto as crypto;
 
 use hbbft::dynamic_honey_badger::Batch;
-use hbbft::util::SubRng;
 use hbbft::{self, Contribution, DaStep, DistAlgorithm, NetworkInfo, NodeIdT, Step};
 
 use try_some;
@@ -267,14 +266,6 @@ where
     pub netinfo: NetworkInfo<D::NodeId>,
     /// Whether or not the node is marked faulty.
     pub faulty: bool,
-    /// An initialized random number generated for exclusive use by the node.
-    ///
-    /// Can be ignored, but usually comes in handy with algorithms that require additional
-    /// randomness for instantiation or operation.
-    ///
-    /// Note that the random number generator type may differ from the one set for generation on
-    /// the `VirtualNet`, due to limitations of the `rand` crates API.
-    pub rng: Box<dyn rand::Rng>,
 }
 
 impl<D> fmt::Debug for NewNodeInfo<D>
@@ -754,7 +745,6 @@ where
                     id: id.clone(),
                     netinfo,
                     faulty: is_faulty,
-                    rng: rng.sub_rng(),
                 });
                 steps.insert(id.clone(), step);
                 (id, Node::new(algorithm, is_faulty))
@@ -790,7 +780,11 @@ where
     ///
     /// Retrieves the receiving node for a `msg` and hands over the payload.
     #[inline]
-    pub fn dispatch_message(&mut self, msg: NetMessage<D>) -> Result<DaStep<D>, CrankError<D>> {
+    pub fn dispatch_message<R: Rng>(
+        &mut self,
+        msg: NetMessage<D>,
+        rng: &mut R,
+    ) -> Result<DaStep<D>, CrankError<D>> {
         let node = self
             .nodes
             .get_mut(&msg.to)
@@ -802,7 +796,7 @@ where
         let msg_copy = msg.clone();
         let step = node
             .algorithm
-            .handle_message(&msg.from, msg.payload)
+            .handle_message(&msg.from, msg.payload, rng)
             .map_err(move |err| CrankError::AlgorithmError { msg: msg_copy, err })?;
 
         Ok(step)
@@ -817,13 +811,18 @@ where
     ///
     /// Panics if `id` does not name a valid node.
     #[inline]
-    pub fn send_input(&mut self, id: D::NodeId, input: D::Input) -> Result<DaStep<D>, D::Error> {
+    pub fn send_input<R: Rng>(
+        &mut self,
+        id: D::NodeId,
+        input: D::Input,
+        rng: &mut R,
+    ) -> Result<DaStep<D>, D::Error> {
         let step = self
             .nodes
             .get_mut(&id)
             .expect("cannot handle input on non-existing node")
             .algorithm
-            .handle_input(input)?;
+            .handle_input(input, rng)?;
 
         self.message_count = self.message_count.saturating_add(process_step(
             &mut self.nodes,
@@ -843,7 +842,10 @@ where
     /// If a successful `Step` was generated, all of its messages are queued on the network and the
     /// `Step` is returned.
     #[inline]
-    pub fn crank(&mut self) -> Option<Result<(D::NodeId, DaStep<D>), CrankError<D>>> {
+    pub fn crank<R: Rng>(
+        &mut self,
+        rng: &mut R,
+    ) -> Option<Result<(D::NodeId, DaStep<D>), CrankError<D>>> {
         // Check limits.
         if let Some(limit) = self.crank_limit {
             if self.crank_count >= limit {
@@ -911,7 +913,7 @@ where
             )
         } else {
             // A correct node simply handles the message.
-            try_some!(self.dispatch_message(msg))
+            try_some!(self.dispatch_message(msg, rng))
         };
 
         // All messages are expanded and added to the queue. We opt for copying them, so we can
@@ -933,8 +935,8 @@ where
     ///
     /// Shortcut for cranking the network, expecting both progress to be made as well as processing
     /// to proceed.
-    pub fn crank_expect(&mut self) -> (D::NodeId, DaStep<D>) {
-        self.crank()
+    pub fn crank_expect<R: Rng>(&mut self, rng: &mut R) -> (D::NodeId, DaStep<D>) {
+        self.crank(rng)
             .expect("crank: network queue empty")
             .expect("crank: node failed to process step")
     }
@@ -954,9 +956,10 @@ where
     ///
     /// If an error occurs, the first error is returned and broadcasting aborted.
     #[inline]
-    pub fn broadcast_input<'a>(
+    pub fn broadcast_input<'a, R: Rng>(
         &'a mut self,
         input: &'a D::Input,
+        rng: &mut R,
     ) -> Result<Vec<(D::NodeId, DaStep<D>)>, D::Error> {
         // Note: The tricky lifetime annotation basically says that the input value given must
         //       live as long as the iterator returned lives (because it is cloned on every step,
@@ -971,7 +974,7 @@ where
             .map(move |node| {
                 Ok((
                     node.id().clone(),
-                    node.algorithm.handle_input(input.clone())?,
+                    node.algorithm.handle_input(input.clone(), rng)?,
                 ))
             })
             .collect::<Result<_, _>>()?;
@@ -1032,30 +1035,5 @@ where
     #[inline]
     fn index_mut(&mut self, index: D::NodeId) -> &mut Self::Output {
         self.get_mut(index).expect("indexed node not found")
-    }
-}
-
-/// Convenient iterator implementation, calls crank repeatedly until the message queue is empty.
-///
-/// Accessing the network during iterator would require
-/// [streaming iterators](https://crates.io/crates/streaming-iterator), an alternative is using
-/// a `while let` loop:
-///
-/// ```rust,no_run
-/// while let Some(rstep) = net.crank() {
-///     // `net` can still be mutable borrowed here.
-/// }
-/// ```
-impl<D> Iterator for VirtualNet<D>
-where
-    D: DistAlgorithm,
-    D::Message: Clone,
-    D::Output: Clone,
-{
-    type Item = Result<(D::NodeId, DaStep<D>), CrankError<D>>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.crank()
     }
 }

@@ -105,9 +105,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
         .using_step(move |node: NewNodeInfo<SenderQueue<_>>| {
             let id = node.id;
             println!("Constructing new dynamic honey badger node #{}", id);
-            let dhb = DynamicHoneyBadger::builder()
-                .rng(node.rng)
-                .build(node.netinfo.clone());
+            let dhb = DynamicHoneyBadger::builder().build(node.netinfo.clone());
             SenderQueue::builder(
                 dhb,
                 node.netinfo.all_ids().filter(|&&them| them != id).cloned(),
@@ -140,7 +138,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
 
         // The step will have its messages added to the queue automatically, we ignore the output.
         let _ = net
-            .send_input(*id, Input::User(proposal))
+            .send_input(*id, Input::User(proposal), &mut rng)
             .expect("could not send initial transaction");
     }
 
@@ -155,8 +153,11 @@ fn do_drop_and_readd(cfg: TestConfig) {
     let pub_keys_add = netinfo.public_key_map().clone();
     let mut pub_keys_rm = pub_keys_add.clone();
     pub_keys_rm.remove(&pivot_node_id);
-    net.broadcast_input(&Input::Change(Change::NodeChange(pub_keys_rm.clone())))
-        .expect("broadcasting failed");
+    net.broadcast_input(
+        &Input::Change(Change::NodeChange(pub_keys_rm.clone())),
+        &mut rng,
+    )
+    .expect("broadcasting failed");
 
     // We are tracking (correct) nodes' state through the process by ticking them off individually.
     let mut awaiting_removal: collections::BTreeSet<_> =
@@ -170,7 +171,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
 
     // Run the network:
     loop {
-        let (node_id, step) = net.crank_expect();
+        let (node_id, step) = net.crank_expect(&mut rng);
 
         for change in step.output.iter().map(|output| output.change()) {
             match change {
@@ -186,6 +187,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
                         .send_input(
                             node_id,
                             Input::Change(Change::NodeChange(pub_keys_add.clone())),
+                            &mut rng,
                         )
                         .expect("failed to send `Add` input");
                 }
@@ -258,7 +260,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
                 choose_contribution(&mut rng, queue, cfg.batch_size, cfg.contribution_size);
 
             let _ = net
-                .send_input(node_id, Input::User(proposal))
+                .send_input(node_id, Input::User(proposal), &mut rng)
                 .expect("could not send follow-up transaction");
         }
     }
