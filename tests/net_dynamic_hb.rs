@@ -194,7 +194,7 @@ fn do_drop_and_readd(cfg: TestConfig) {
                 }.collect();
                 assert!(
                     batch.contributions().count() * 3 > expected_participants.len() * 2,
-                    "The batch contains less contributions than there are correct validators: {:?}",
+                    "The batch contains less than N - f contributions: {:?}",
                     batch
                 );
                 // Verify that only contributions from expected participants can be present in the
@@ -345,11 +345,7 @@ where
         .map(|node| *node.id())
         .filter(|&id| id != pivot_node_id)
         .collect();
-    println!("Peer IDs: {:?}", peer_ids);
-    let pivot_node = net
-        .correct_nodes_mut()
-        .find(|node| *node.id() == pivot_node_id)
-        .expect("failed to get the pivot node");
+    let pivot_node = &mut net[pivot_node_id];
     let secret_key = pivot_node.algorithm().algo().netinfo().secret_key().clone();
     let (dhb, dhb_step) =
         DynamicHoneyBadger::new_joining(pivot_node_id, secret_key, join_plan, rng)
